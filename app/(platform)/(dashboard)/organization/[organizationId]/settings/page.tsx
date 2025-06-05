@@ -4,7 +4,7 @@ const SettingsPage = () => {
     return (
         <div>
             <OrganizationProfile 
-                appearance={{
+                appearance={{   
                     elements: {
                         rootBox: {
                             boxShadow: "none",
