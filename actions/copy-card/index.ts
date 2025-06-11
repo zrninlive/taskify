@@ -7,7 +7,7 @@ import { db } from "@/lib/db"
 import { createSafeAction } from "@/lib/create-safe-action"
 
 import { InputType, ReturnType} from "./types"
-import { CreateCard } from "./schema"
+import { CopyCard } from "./schema"
 import { createAuditLog } from "@/lib/create-audit-log"
 import { ACTION, ENTITY_TYPE } from "@prisma/client"
 
@@ -20,57 +20,59 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         }
     }
 
-    const { title, boardId, listId } = data;
+    const { id, boardId } = data;
 
     let card
     try {
-        const list = await db.list.findUnique({
+        const cardToCopy = await db.card.findUnique({
             where: {
-                id: listId,
-                board: {
-                    orgId,
+                id,
+                list: {
+                    board: {
+                        orgId
+                    }
                 }
-            },
-        }) 
-
-
-        if(!list){
-            return {
-                error: "List not found!"
             }
+        })
+
+        if(!cardToCopy){
+            return { error: "Card not found"}
         }
 
         const lastCard = await db.card.findFirst({
-            where: { listId },
-            orderBy: { order : "desc" },
+            where: { listId: cardToCopy?.listId },
+            orderBy: { order: "desc" },
             select: { order: true }
         })
 
-        const newOrder = lastCard?.order ? lastCard.order + 1 : 1
+        const newOrder = lastCard?.order ?  lastCard?.order + 1 : 1;
 
         card = await db.card.create({
             data: {
-                title,
-                listId,
+                title: `${cardToCopy.title} - Copy`,
+                description: cardToCopy.description,
                 order: newOrder,
+                listId: cardToCopy.listId
             }
         })
 
         await createAuditLog({
-            entityId: card.id,
             entityTitle: card.title,
+            entityId: card.id,
             entityType: ENTITY_TYPE.CARD,
-            action: ACTION.CREATE,
+            action: ACTION.CREATE
         })
 
     } catch (error) {
         return { 
-            error: "Failed to create."
+            error: "Failed to copy."
         }
     }
 
     revalidatePath(`/board/${boardId}`)
-    return { data: card }
+    return {
+        data: card
+    }
 }
 
-export const createCard = createSafeAction(CreateCard, handler)
+export const copyCard = createSafeAction(CopyCard, handler)

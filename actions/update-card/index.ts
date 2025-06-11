@@ -7,7 +7,7 @@ import { db } from "@/lib/db"
 import { createSafeAction } from "@/lib/create-safe-action"
 
 import { InputType, ReturnType} from "./types"
-import { UpdateList } from "./schema"
+import { UpdateCard } from "./schema"
 import { createAuditLog } from "@/lib/create-audit-log"
 import { ACTION, ENTITY_TYPE } from "@prisma/client"
 
@@ -20,31 +20,31 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         }
     }
 
-    const { title, id, boardId } = data;
+    const { id, boardId, ...values } = data;
 
-    let list
+    let card
     try {
-        list = await db.list.update({
+        card = await db.card.update({
             where: {
                 id,
-                boardId,
-                board: {
-                    orgId
+                list: {
+                    board: {
+                        orgId
+                    }
                 }
             },
             data: {
-                title
+                ...values,
             }
         })
 
 
         await createAuditLog({
-            entityTitle: list.title,
-            entityId: list.id,
-            entityType: ENTITY_TYPE.LIST,
+            entityTitle: card.title,
+            entityId: card.id,
+            entityType: ENTITY_TYPE.CARD,
             action: ACTION.UPDATE
         })
-
 
     } catch (error) {
         return { 
@@ -52,8 +52,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         }
     }
 
-    revalidatePath(`/board/${id}`)
-    return { data: list }
+    revalidatePath(`/board/${boardId}`)
+    return { data: card }
 }
 
-export const updateList = createSafeAction(UpdateList, handler)
+export const updateCard = createSafeAction(UpdateCard, handler)
